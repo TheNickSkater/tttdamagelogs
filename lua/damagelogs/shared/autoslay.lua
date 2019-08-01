@@ -164,9 +164,9 @@ if CLIENT then
 		if not IsValid(ply) or not ply:IsPlayer() or not list or not reason or not _time then return end
 
 
-		local text = aslay and " has been autoslain by " or " has been autojailed by "
+		local text = aslay and " has been autoslain by an Admin" or " has been autojailed by an Admin"
 
-		chat.AddText(Color(255, 62, 62), ply:Nick(), color_white, text, color_lightblue, list .. " ", color_white, _time .. " ago with the reason: '" .. reason .. "'.")
+		chat.AddText(Color(255, 62, 62), ply:Nick(), color_white, text .. " ", color_white, _time .. " ago with the reason: '" .. reason .. "'.")
 	end)
 
 	net.Receive("DL_AutoSlaysLeft", function()

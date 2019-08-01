@@ -28,9 +28,19 @@ end
 function meta:CanUseRDMManager()
 	for k, v in pairs(Damagelog.RDM_Manager_Rights) do
 		if self:IsUserGroup(k) then
-			return v
+			if v >= 2 then return true end
 		end
 	end
 
 	return false
+end
+
+function meta:GetRDMPermState()
+	for k, v in pairs(Damagelog.RDM_Manager_Rights) do
+		if self:IsUserGroup(k) then
+			return v
+		end
+	end
+
+	return 1
 end

@@ -10,15 +10,20 @@
 
 	Everyone can view logs of previous rounds.
 
-	Third argument: access to RDM Manager tab in Damagelogs (true/false).
+	Third argument: 
+	1 : Can't see RDM Manager
+	2 : Can see RDM Manager and see Reports but cant do anything with them
+	3 : Complete controll over RDM Manager
 ]]--
 
-Damagelog:AddUser("owner", 4, true)
-Damagelog:AddUser("founder", 4, true)
-Damagelog:AddUser("superadmin", 4, true)
-Damagelog:AddUser("admin", 4, true)
-Damagelog:AddUser("operator", 3, false)
-Damagelog:AddUser("user", 2, false)
+Damagelog:AddUser("owner", 4, 3)
+Damagelog:AddUser("founder", 4, 3)
+Damagelog:AddUser("superadmin", 4, 3)
+Damagelog:AddUser("admin", 4, 3)
+Damagelog:AddUser("operator", 3, 1)
+Damagelog:AddUser("supporter", 3, 2)
+Damagelog:AddUser("moderator", 3, 3)
+Damagelog:AddUser("user", 2, 1)
 
 -- The F-key
 
@@ -47,7 +52,7 @@ Damagelog.Respond_Command = "!respond"
 	Setting it to false will make the logs use SQLite (garrysmod/sv.db)
 ]]--
 
-Damagelog.Use_MySQL = false
+Damagelog.Use_MySQL = true
 
 --[[Autoslay and Autojail Mode
 REQUIRES ULX ! If you are using ServerGuard, set this to 0 (it will use ServerGuard's autoslay automatically)
@@ -102,7 +107,7 @@ Damagelog.LogDays = 61
 
 -- Hide the Donate button on the top-right corner
 
-Damagelog.HideDonateButton = false
+Damagelog.HideDonateButton = true
 
 -- Use the Workshop to download content files
 

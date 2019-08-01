@@ -85,6 +85,7 @@ local colors = {
 }
 
 local function TakeAction()
+	local managerPerm = LocalPlayer():GetRDMPermState()
 	local report = Damagelog.SelectedReport
 
 	if not report then return end
@@ -106,108 +107,180 @@ local function TakeAction()
 			end
 		end)
 	end):SetImage("icon16/comment.png")
+	
+	if managerPerm == 3 then
 
-	if not report.response then
-		menuPanel:AddOption(TTTLogTranslate(GetDMGLogLang, "RDMForceRespond"), function()
-			if IsValid(attacker) then
-				net.Start("DL_ForceRespond")
-				net.WriteUInt(report.index, 16)
-				net.WriteUInt(current and 0 or 1, 1)
-				net.SendToServer()
-			else
-				Derma_Message(TTTLogTranslate(GetDMGLogLang, "RDMNotValid"), TTTLogTranslate(GetDMGLogLang, "Error"), "OK")
-			end
-		end):SetImage("icon16/clock_red.png")
-	end
-
-	if not report.previous then
-		if not report.chat_open then
-			menuPanel:AddOption(report.chat_opened and TTTLogTranslate(GetDMGLogLang, "ViewChat") or TTTLogTranslate(GetDMGLogLang, "OpenChat"), function()
-				if not report.chat_opened then
-					net.Start("DL_StartChat")
-					net.WriteUInt(report.index, 32)
+		if not report.response then
+			menuPanel:AddOption(TTTLogTranslate(GetDMGLogLang, "RDMForceRespond"), function()
+				if IsValid(attacker) then
+					net.Start("DL_ForceRespond")
+					net.WriteUInt(report.index, 16)
+					net.WriteUInt(current and 0 or 1, 1)
 					net.SendToServer()
+				else
+					Derma_Message(TTTLogTranslate(GetDMGLogLang, "RDMNotValid"), TTTLogTranslate(GetDMGLogLang, "Error"), "OK")
+				end
+			end):SetImage("icon16/clock_red.png")
+		end
 
-					if not report.response then
-						Damagelog.DisableResponse(true)
-					end
+		if not report.previous then
+			if not report.chat_open then
+				menuPanel:AddOption(report.chat_opened and TTTLogTranslate(GetDMGLogLang, "ViewChat") or TTTLogTranslate(GetDMGLogLang, "OpenChat"), function()
+					if not report.chat_opened then
+						net.Start("DL_StartChat")
+						net.WriteUInt(report.index, 32)
+						net.SendToServer()
 
-					if report.status == RDM_MANAGER_WAITING then
-						net.Start("DL_UpdateStatus")
-						net.WriteUInt(report.previous and 1 or 0, 1)
-						net.WriteUInt(report.index, 16)
-						net.WriteUInt(RDM_MANAGER_PROGRESS, 4)
+						if not report.response then
+							Damagelog.DisableResponse(true)
+						end
+
+						if report.status == RDM_MANAGER_WAITING then
+							net.Start("DL_UpdateStatus")
+							net.WriteUInt(report.previous and 1 or 0, 1)
+							net.WriteUInt(report.index, 16)
+							net.WriteUInt(RDM_MANAGER_PROGRESS, 4)
+							net.SendToServer()
+						end
+					else
+						net.Start("DL_ViewChat")
+						net.WriteUInt(report.index, 32)
 						net.SendToServer()
 					end
-				else
-					net.Start("DL_ViewChat")
+				end):SetImage("icon16/application_view_list.png")
+			else
+				menuPanel:AddOption(TTTLogTranslate(GetDMGLogLang, "JoinChat"), function()
+					net.Start("DL_JoinChat")
 					net.WriteUInt(report.index, 32)
 					net.SendToServer()
-				end
-			end):SetImage("icon16/application_view_list.png")
-		else
-			menuPanel:AddOption(TTTLogTranslate(GetDMGLogLang, "JoinChat"), function()
-				net.Start("DL_JoinChat")
-				net.WriteUInt(report.index, 32)
-				net.SendToServer()
-			end):SetImage("icon16/application_go.png")
+				end):SetImage("icon16/application_go.png")
+			end
 		end
-	end
 
-	menuPanel:AddOption(TTTLogTranslate(GetDMGLogLang, "ShowDeathScene"), function()
-		local found = false
-		local rls = Damagelog.Roles[report.round]
-		local victimID = util.SteamIDTo64(report.victim)
-		local attackerID = util.SteamIDTo64(report.attacker)
+		menuPanel:AddOption(TTTLogTranslate(GetDMGLogLang, "ShowDeathScene"), function()
+			local found = false
+			local rls = Damagelog.Roles[report.round]
+			local victimID = util.SteamIDTo64(report.victim)
+			local attackerID = util.SteamIDTo64(report.attacker)
 
-		for _, v in pairs(report.logs or {}) do
-			if IsValid(Damagelog.events[v.id]) and Damagelog.events[v.id].type == "KILL" then
-				local infos = v.infos
-				local ent = Damagelog:InfoFromID(rls, infos[1])
-				local att = Damagelog:InfoFromID(rls, infos[2])
+			for _, v in pairs(report.logs or {}) do
+				if IsValid(Damagelog.events[v.id]) and Damagelog.events[v.id].type == "KILL" then
+					local infos = v.infos
+					local ent = Damagelog:InfoFromID(rls, infos[1])
+					local att = Damagelog:InfoFromID(rls, infos[2])
 
-				if ent.steamid64 == victimID and att.steamid64 == attackerID then
-					net.Start("DL_AskDeathScene")
-					net.WriteUInt(infos[4], 32)
-					net.WriteUInt(infos[2], 32)
-					net.WriteUInt(infos[1], 32)
-					net.WriteString(report.attacker)
+					if ent.steamid64 == victimID and att.steamid64 == attackerID then
+						net.Start("DL_AskDeathScene")
+						net.WriteUInt(infos[4], 32)
+						net.WriteUInt(infos[2], 32)
+						net.WriteUInt(infos[1], 32)
+						net.WriteString(report.attacker)
+						net.SendToServer()
+
+						found = true
+
+						break
+					end
+				end
+			end
+
+			if not found then
+				Derma_Message(TTTLogTranslate(GetDMGLogLang, "DeathSceneNotFound"), TTTLogTranslate(GetDMGLogLang, "Error"), "OK")
+			end
+		end):SetImage("icon16/television.png")
+
+		if serverguard or ulx then
+			if serverguard or (ulx and (mode == 1 or mode == 2)) then
+				local function SetConclusion(ply, num, reason)
+					net.Start("DL_Conclusion")
+					net.WriteUInt(1, 1)
+					net.WriteUInt(report.previous and 1 or 0, 1)
+					net.WriteUInt(report.index, 16)
+
+					local typ = mode == 1 and "AutoReasonSlay" or "AutoReasonJail"
+
+					net.WriteString(string.format(TTTLogTranslate(GetDMGLogLang, typ), ply, num, reason))
 					net.SendToServer()
-
-					found = true
-
-					break
 				end
+
+				local function SetConclusionBan(ply, num, reason)
+					net.Start("DL_Conclusion")
+					net.WriteUInt(1, 1)
+					net.WriteUInt(report.previous and 1 or 0, 1)
+					net.WriteUInt(report.index, 16)
+					net.WriteString(string.format(TTTLogTranslate(GetDMGLogLang, "AutoReasonBan"), ply, num, reason))
+					net.SendToServer()
+				end
+
+				local slaynr_pnl = vgui.Create("DMenuOption", menuPanel)
+
+				local slaynr = DermaMenu(menuPanel)
+				slaynr:SetVisible(false)
+
+				slaynr_pnl:SetSubMenu(slaynr)
+
+				local txt = TTTLogTranslate(GetDMGLogLang, "SlayNextRound")
+
+				if ulx and mode == 2 then
+					txt = TTTLogTranslate(GetDMGLogLang, "JailNextRound")
+				end
+
+				slaynr_pnl:SetText(txt)
+				slaynr_pnl:SetImage("icon16/lightning_go.png")
+
+				menuPanel:AddPanel(slaynr_pnl)
+
+				slaynr:AddOption(TTTLogTranslate(GetDMGLogLang, "ReportedPlayer") .. " (" .. report.attacker_nick .. ")", function()
+					local frame = vgui.Create("RDM_Manager_Slay_Reason", Damagelog.Menu)
+					frame.SetConclusion = SetConclusion
+
+					frame:SetPlayer(true, attacker, report.attacker, report)
+				end):SetImage("icon16/user_delete.png")
+
+				slaynr:AddOption(TTTLogTranslate(GetDMGLogLang, "Victim") .. " (" .. report.victim_nick .. ")", function()
+					local frame = vgui.Create("RDM_Manager_Slay_Reason", Damagelog.Menu)
+					frame.SetConclusion = SetConclusion
+
+					frame:SetPlayer(false, victim, report.victim, report)
+				end):SetImage("icon16/user.png")
+
+				slaynr_pnl2 = vgui.Create("DMenuOption", menuPanel)
+
+				slaynr2 = DermaMenu(menuPanel)
+				slaynr2:SetVisible(false)
+
+				slaynr_pnl2:SetSubMenu(slaynr2)
+				slaynr_pnl2:SetText("Ban")
+				slaynr_pnl2:SetImage("icon16/bomb.png")
+
+				menuPanel:AddPanel(slaynr_pnl2)
+
+				slaynr2:AddOption(TTTLogTranslate(GetDMGLogLang, "ReportedPlayer") .. " (" .. report.attacker_nick .. ")", function()
+					local frame = vgui.Create("RDM_Manager_Ban_Reason", Damagelog.Menu)
+
+					frame.SetConclusion = SetConclusionBan
+					frame:SetPlayer(true, attacker, report.attacker, report)
+				end):SetImage("icon16/user_delete.png")
+
+				slaynr2:AddOption(TTTLogTranslate(GetDMGLogLang, "Victim") .. " (" .. report.victim_nick .. ")", function()
+					local frame = vgui.Create("RDM_Manager_Ban_Reason", Damagelog.Menu)
+
+					frame.SetConclusion = SetConclusionBan
+					frame:SetPlayer(false, victim, report.victim, report)
+				end):SetImage("icon16/user.png")
 			end
-		end
 
-		if not found then
-			Derma_Message(TTTLogTranslate(GetDMGLogLang, "DeathSceneNotFound"), TTTLogTranslate(GetDMGLogLang, "Error"), "OK")
-		end
-	end):SetImage("icon16/television.png")
-
-	if serverguard or ulx then
-		if serverguard or (ulx and (mode == 1 or mode == 2)) then
-			local function SetConclusion(ply, num, reason)
-				net.Start("DL_Conclusion")
-				net.WriteUInt(1, 1)
-				net.WriteUInt(report.previous and 1 or 0, 1)
-				net.WriteUInt(report.index, 16)
-
-				local typ = mode == 1 and "AutoReasonSlay" or "AutoReasonJail"
-
-				net.WriteString(string.format(TTTLogTranslate(GetDMGLogLang, typ), ply, num, reason))
-				net.SendToServer()
-			end
-
-			local function SetConclusionBan(ply, num, reason)
-				net.Start("DL_Conclusion")
-				net.WriteUInt(1, 1)
-				net.WriteUInt(report.previous and 1 or 0, 1)
-				net.WriteUInt(report.index, 16)
-				net.WriteString(string.format(TTTLogTranslate(GetDMGLogLang, "AutoReasonBan"), ply, num, reason))
-				net.SendToServer()
-			end
+			menuPanel:AddOption(TTTLogTranslate(GetDMGLogLang, "SlayReportedPlayerNow"), function()
+				if IsValid(attacker) then
+					if ulx then
+						RunConsoleCommand("ulx", "slay", attacker:Nick())
+					else
+						serverguard.command.Run("slay", false, LocalPlayer():Nick())
+					end
+				else
+					Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "RDMNotValid"), 2, "buttons/weapon_cant_buy.wav")
+				end
+			end):SetImage("icon16/lightning.png")
 
 			local slaynr_pnl = vgui.Create("DMenuOption", menuPanel)
 
@@ -215,30 +288,37 @@ local function TakeAction()
 			slaynr:SetVisible(false)
 
 			slaynr_pnl:SetSubMenu(slaynr)
-
-			local txt = TTTLogTranslate(GetDMGLogLang, "SlayNextRound")
-
-			if ulx and mode == 2 then
-				txt = TTTLogTranslate(GetDMGLogLang, "JailNextRound")
-			end
-
-			slaynr_pnl:SetText(txt)
-			slaynr_pnl:SetImage("icon16/lightning_go.png")
+			slaynr_pnl:SetText(TTTLogTranslate(GetDMGLogLang, "SendMessage"))
+			slaynr_pnl:SetImage("icon16/user_edit.png")
 
 			menuPanel:AddPanel(slaynr_pnl)
 
 			slaynr:AddOption(TTTLogTranslate(GetDMGLogLang, "ReportedPlayer") .. " (" .. report.attacker_nick .. ")", function()
-				local frame = vgui.Create("RDM_Manager_Slay_Reason", Damagelog.Menu)
-				frame.SetConclusion = SetConclusion
-
-				frame:SetPlayer(true, attacker, report.attacker, report)
+				if IsValid(attacker) then
+					Derma_StringRequest(TTTLogTranslate(GetDMGLogLang, "PrivateMessage"), string.format(TTTLogTranslate(GetDMGLogLang, "WhatToSay"), attacker:Nick()), "", function(msg)
+						if ulx then
+							RunConsoleCommand("ulx", "psay", attacker:Nick(), Damagelog.PrivateMessagePrefix.." "..msg)
+						else
+							serverguard.command.Run("pm", attacker:Nick(), Damagelog.PrivateMessagePrefix.. " "..msg)
+						end
+					end)
+				else
+					Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "VictimReportedDisconnected"), 2, "buttons/weapon_cant_buy.wav")
+				end
 			end):SetImage("icon16/user_delete.png")
 
 			slaynr:AddOption(TTTLogTranslate(GetDMGLogLang, "Victim") .. " (" .. report.victim_nick .. ")", function()
-				local frame = vgui.Create("RDM_Manager_Slay_Reason", Damagelog.Menu)
-				frame.SetConclusion = SetConclusion
-
-				frame:SetPlayer(false, victim, report.victim, report)
+				if IsValid(victim) then
+					Derma_StringRequest(TTTLogTranslate(GetDMGLogLang, "PrivateMessage"), string.format(TTTLogTranslate(GetDMGLogLang, "WhatToSay"), victim:Nick()), "", function(msg)
+						if ulx then
+							RunConsoleCommand("ulx", "psay", victim:Nick(), Damagelog.PrivateMessagePrefix.." "..msg)
+						else
+							serverguard.command.Run("pm", attacker:Nick(), Damagelog.PrivateMessagePrefix.. " "..msg)
+						end
+					end)
+				else
+					Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "VictimReportedDisconnected"), 2, "buttons/weapon_cant_buy.wav")
+				end
 			end):SetImage("icon16/user.png")
 
 			slaynr_pnl2 = vgui.Create("DMenuOption", menuPanel)
@@ -247,130 +327,53 @@ local function TakeAction()
 			slaynr2:SetVisible(false)
 
 			slaynr_pnl2:SetSubMenu(slaynr2)
-			slaynr_pnl2:SetText("Ban")
-			slaynr_pnl2:SetImage("icon16/bomb.png")
+
+			local txt = TTTLogTranslate(GetDMGLogLang, "RemoveAutoSlays")
+
+			if ulx and mode == 2 then
+				txt = TTTLogTranslate(GetDMGLogLang, "RemoveAutoJails")
+			elseif serverguard then
+				txt = TTTLogTranslate(GetDMGLogLang, "RemoveOneAutoSlay")
+			end
+
+			slaynr_pnl2:SetText(txt)
+			slaynr_pnl2:SetImage("icon16/cancel.png")
 
 			menuPanel:AddPanel(slaynr_pnl2)
 
 			slaynr2:AddOption(TTTLogTranslate(GetDMGLogLang, "ReportedPlayer") .. " (" .. report.attacker_nick .. ")", function()
-				local frame = vgui.Create("RDM_Manager_Ban_Reason", Damagelog.Menu)
-
-				frame.SetConclusion = SetConclusionBan
-				frame:SetPlayer(true, attacker, report.attacker, report)
+				if IsValid(attacker) then
+					if ulx then
+						RunConsoleCommand("ulx", mode == 1 and "aslay" or "ajail", attacker:Nick(), "0")
+					else
+						serverguard.command.Run("raslay", false, attacker:Nick())
+					end
+				else
+					if ulx then
+						RunConsoleCommand("ulx", mode == 1 and "aslayid" or "ajailid", report.attacker, "0")
+					else
+						Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "VictimReportedDisconnected"), 2, "buttons/weapon_cant_buy.wav")
+					end
+				end
 			end):SetImage("icon16/user_delete.png")
 
-			slaynr2:AddOption(TTTLogTranslate(GetDMGLogLang, "Victim") .. " (" .. report.victim_nick .. ")", function()
-				local frame = vgui.Create("RDM_Manager_Ban_Reason", Damagelog.Menu)
-
-				frame.SetConclusion = SetConclusionBan
-				frame:SetPlayer(false, victim, report.victim, report)
+			slaynr2:AddOption(TTTLogTranslate(GetDMGLogLang, "TheVictim") .. " (" .. report.victim_nick .. ")", function()
+				if IsValid(victim) then
+					if ulx then
+						RunConsoleCommand("ulx", mode == 1 and "aslay" or "ajail", victim:Nick(), "0")
+					else
+						serverguard.command.Run("raslay", false, victim:Nick())
+					end
+				else
+					if ulx then
+						RunConsoleCommand("ulx", mode == 1 and "aslayid" or "ajailid", report.victim, "0")
+					else
+						Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "VictimReportedDisconnected"), 2, "buttons/weapon_cant_buy.wav")
+					end
+				end
 			end):SetImage("icon16/user.png")
 		end
-
-		menuPanel:AddOption(TTTLogTranslate(GetDMGLogLang, "SlayReportedPlayerNow"), function()
-			if IsValid(attacker) then
-				if ulx then
-					RunConsoleCommand("ulx", "slay", attacker:Nick())
-				else
-					serverguard.command.Run("slay", false, LocalPlayer():Nick())
-				end
-			else
-				Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "RDMNotValid"), 2, "buttons/weapon_cant_buy.wav")
-			end
-		end):SetImage("icon16/lightning.png")
-
-		local slaynr_pnl = vgui.Create("DMenuOption", menuPanel)
-
-		local slaynr = DermaMenu(menuPanel)
-		slaynr:SetVisible(false)
-
-		slaynr_pnl:SetSubMenu(slaynr)
-		slaynr_pnl:SetText(TTTLogTranslate(GetDMGLogLang, "SendMessage"))
-		slaynr_pnl:SetImage("icon16/user_edit.png")
-
-		menuPanel:AddPanel(slaynr_pnl)
-
-		slaynr:AddOption(TTTLogTranslate(GetDMGLogLang, "ReportedPlayer") .. " (" .. report.attacker_nick .. ")", function()
-			if IsValid(attacker) then
-				Derma_StringRequest(TTTLogTranslate(GetDMGLogLang, "PrivateMessage"), string.format(TTTLogTranslate(GetDMGLogLang, "WhatToSay"), attacker:Nick()), "", function(msg)
-					if ulx then
-						RunConsoleCommand("ulx", "psay", attacker:Nick(), Damagelog.PrivateMessagePrefix.." "..msg)
-					else
-						serverguard.command.Run("pm", attacker:Nick(), Damagelog.PrivateMessagePrefix.. " "..msg)
-					end
-				end)
-			else
-				Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "VictimReportedDisconnected"), 2, "buttons/weapon_cant_buy.wav")
-			end
-		end):SetImage("icon16/user_delete.png")
-
-		slaynr:AddOption(TTTLogTranslate(GetDMGLogLang, "Victim") .. " (" .. report.victim_nick .. ")", function()
-			if IsValid(victim) then
-				Derma_StringRequest(TTTLogTranslate(GetDMGLogLang, "PrivateMessage"), string.format(TTTLogTranslate(GetDMGLogLang, "WhatToSay"), victim:Nick()), "", function(msg)
-					if ulx then
-						RunConsoleCommand("ulx", "psay", victim:Nick(), Damagelog.PrivateMessagePrefix.." "..msg)
-					else
-						serverguard.command.Run("pm", attacker:Nick(), Damagelog.PrivateMessagePrefix.. " "..msg)
-					end
-				end)
-			else
-				Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "VictimReportedDisconnected"), 2, "buttons/weapon_cant_buy.wav")
-			end
-		end):SetImage("icon16/user.png")
-
-		slaynr_pnl2 = vgui.Create("DMenuOption", menuPanel)
-
-		slaynr2 = DermaMenu(menuPanel)
-		slaynr2:SetVisible(false)
-
-		slaynr_pnl2:SetSubMenu(slaynr2)
-
-		local txt = TTTLogTranslate(GetDMGLogLang, "RemoveAutoSlays")
-
-		if ulx and mode == 2 then
-			txt = TTTLogTranslate(GetDMGLogLang, "RemoveAutoJails")
-		elseif serverguard then
-			txt = TTTLogTranslate(GetDMGLogLang, "RemoveOneAutoSlay")
-		end
-
-		slaynr_pnl2:SetText(txt)
-		slaynr_pnl2:SetImage("icon16/cancel.png")
-
-		menuPanel:AddPanel(slaynr_pnl2)
-
-		slaynr2:AddOption(TTTLogTranslate(GetDMGLogLang, "ReportedPlayer") .. " (" .. report.attacker_nick .. ")", function()
-			if IsValid(attacker) then
-				if ulx then
-					RunConsoleCommand("ulx", mode == 1 and "aslay" or "ajail", attacker:Nick(), "0")
-				else
-					serverguard.command.Run("raslay", false, attacker:Nick())
-				end
-			else
-				if ulx then
-					RunConsoleCommand("ulx", mode == 1 and "aslayid" or "ajailid", report.attacker, "0")
-				else
-					Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "VictimReportedDisconnected"), 2, "buttons/weapon_cant_buy.wav")
-				end
-			end
-		end):SetImage("icon16/user_delete.png")
-
-		slaynr2:AddOption(TTTLogTranslate(GetDMGLogLang, "TheVictim") .. " (" .. report.victim_nick .. ")", function()
-			if IsValid(victim) then
-				if ulx then
-					RunConsoleCommand("ulx", mode == 1 and "aslay" or "ajail", victim:Nick(), "0")
-				else
-					serverguard.command.Run("raslay", false, victim:Nick())
-				end
-			else
-				if ulx then
-					RunConsoleCommand("ulx", mode == 1 and "aslayid" or "ajailid", report.victim, "0")
-				else
-					Damagelog:Notify(DAMAGELOG_NOTIFY_ALERT, TTTLogTranslate(GetDMGLogLang, "VictimReportedDisconnected"), 2, "buttons/weapon_cant_buy.wav")
-				end
-			end
-		end):SetImage("icon16/user.png")
 	end
-
 	menuPanel:Open()
 end
 
@@ -709,7 +712,8 @@ local function DrawStatusMenuOption(id, menu)
 end
 
 function Damagelog:DrawRDMManager(x, y)
-	if LocalPlayer():CanUseRDMManager() and Damagelog.RDM_Manager_Enabled then
+	local managerPerm = LocalPlayer():GetRDMPermState()
+	if (managerPerm == 2 or managerPerm == 3) and Damagelog.RDM_Manager_Enabled then
 		local Manager = vgui.Create("DPanelList")
 		Manager:SetSpacing(10)
 
@@ -740,7 +744,7 @@ function Damagelog:DrawRDMManager(x, y)
 		ShowFinished:SetConVar("rdm_manager_show_finished")
 		ShowFinished:SizeToContents()
 		ShowFinished:SetPos(235, 7)
-
+		
 		local TakeActionB = vgui.Create("DButton", Background)
 		TakeActionB:SetText(TTTLogTranslate(GetDMGLogLang, "TakeAction"))
 		TakeActionB:SetPos(470, 4)
@@ -753,25 +757,27 @@ function Damagelog:DrawRDMManager(x, y)
 			TakeAction()
 		end
 
-		local SetState = vgui.Create("DButton", Background)
-		SetState:SetText(TTTLogTranslate(GetDMGLogLang, "SStatus"))
-		SetState:SetPos(555, 4)
-		SetState:SetSize(80, 18)
+		if managerPerm == 3 then
+			local SetState = vgui.Create("DButton", Background)
+			SetState:SetText(TTTLogTranslate(GetDMGLogLang, "SStatus"))
+			SetState:SetPos(555, 4)
+			SetState:SetSize(80, 18)
 
-		SetState.Think = function(slf)
-			slf:SetEnabled(Damagelog.SelectedReport)
+			SetState.Think = function(slf)
+				slf:SetEnabled(Damagelog.SelectedReport)
+			end
+			SetState.DoClick = function()
+				local menu = DermaMenu()
+				--local attacker = player.GetBySteamID64(Damagelog.SelectedReport.attacker)
+
+				DrawStatusMenuOption(RDM_MANAGER_WAITING, menu)
+				DrawStatusMenuOption(RDM_MANAGER_PROGRESS, menu)
+				DrawStatusMenuOption(RDM_MANAGER_FINISHED, menu)
+
+				menu:Open()
+			end
 		end
-		SetState.DoClick = function()
-			local menu = DermaMenu()
-			--local attacker = player.GetBySteamID64(Damagelog.SelectedReport.attacker)
-
-			DrawStatusMenuOption(RDM_MANAGER_WAITING, menu)
-			DrawStatusMenuOption(RDM_MANAGER_PROGRESS, menu)
-			DrawStatusMenuOption(RDM_MANAGER_FINISHED, menu)
-
-			menu:Open()
-		end
-
+		
 		local CreateReport = vgui.Create("DButton", Background)
 		CreateReport:SetText(TTTLogTranslate(GetDMGLogLang, "CreateReport"))
 		CreateReport:SetPos(385, 4)
